@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 威秀影城 - 電影資訊爬蟲與查詢系統</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .info-box {
+            background: #f7f7fc;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .info-item {
+            margin: 10px 0;
+            font-size: 1.1rem;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .movie-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .movie-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+        
+        .movie-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        
+        .movie-poster {
+            width: 100%;
+            height: 350px;
+            object-fit: cover;
+            background: #f0f0f0;
+        }
+        
+        .movie-info {
+            padding: 15px;
+        }
+        
+        .movie-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .movie-date {
+            color: #667eea;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        
+        .movie-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .movie-link:hover {
+            text-decoration: underline;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 1.1rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        
+        .message {
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        @media (max-width: 768px) {
+            .movie-grid {
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            }
+            .movie-poster {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 威秀影城 - 電影資訊爬蟲與查詢系統</h1>
+            <p>爬取即將上映電影 | 關鍵字查詢資料庫</p>
+        </div>
+
+        <!-- 爬蟲區塊 -->
+        <div class="card">
+            <h2>📡 爬取即將上映電影</h2>
+            <div class="button-group">
+                <button class="btn" onclick="spiderMovie()">開始爬取威秀影城電影</button>
+            </div>
+            <div id="spiderResult">
+                <div class="info-box">
+                    <div class="info-item">💡 提示：點擊按鈕爬取威秀影城即將上映電影並儲存至資料庫</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 搜尋區塊 -->
+        <div class="card">
+            <h2>🔍 查詢電影</h2>
+            <div class="search-box">
+                <input type="text" id="keyword" class="search-input" placeholder="請輸入片名關鍵字，例如：超人、曼達洛人..." />
+                <button class="btn" onclick="searchMovie()">查詢</button>
+            </div>
+            <div id="searchResult"></div>
+        </div>
+    </div>
+
+    <script>
+        // API 路徑
+        const API_BASE = '';
+        
+        // 爬取電影
+        async function spiderMovie() {
+            const resultDiv = document.getElementById('spiderResult');
+            resultDiv.innerHTML = '<div class="loading">🔄 正在爬取威秀影城電影資料，請稍候...</div>';
+            
+            try {
+                const response = await fetch('/spider', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="info-box">
+                            <div class="info-item"><span class="info-label">✅ 狀態：</span>爬取成功</div>
+                            <div class="info-item"><span class="info-label">📅 最近更新日期：</span>${data.lastUpdated}</div>
+                            <div class="info-item"><span class="info-label">🎬 資料庫電影總數：</span>${data.movieCount} 部</div>
+                            <div class="info-item"><span class="info-label">💬 訊息：</span>${data.message}</div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="message error">❌ 爬取失敗：${data.error || '未知錯誤'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="message error">❌ 請求失敗：${error.message}</div>`;
+                console.error('爬取錯誤:', error);
+            }
+        }
+        
+        // 查詢電影
+        async function searchMovie() {
+            const keyword = document.getElementById('keyword').value.trim();
+            const resultDiv = document.getElementById('searchResult');
+            
+            if (!keyword) {
+                resultDiv.innerHTML = '<div class="message error">⚠️ 請輸入關鍵字</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading">🔍 查詢中，請稍候...</div>';
+            
+            try {
+                const response = await fetch(`/search?keyword=${encodeURIComponent(keyword)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.total === 0) {
+                        resultDiv.innerHTML = `<div class="message error">😔 找不到符合「${data.keyword}」的電影</div>`;
+                        return;
+                    }
+                    
+                    // 建立電影卡片列表
+                    let moviesHtml = `<div style="margin-bottom: 15px;"><strong>🔎 找到 ${data.total} 部符合「${data.keyword}」的電影</strong></div>`;
+                    moviesHtml += '<div class="movie-grid">';
+                    
+                    data.movies.forEach(movie => {
+                        moviesHtml += `
+                            <div class="movie-card" onclick="window.open('${movie.detail_url || '#'}', '_blank')">
+                                ${movie.poster ? `<img class="movie-poster" src="${movie.poster}" alt="${movie.title}" onerror="this.src='https://via.placeholder.com/200x300?text=No+Image'">` : '<div class="movie-poster" style="background:#f0f0f0; display:flex; align-items:center; justify-content:center;">暫無海報</div>'}
+                                <div class="movie-info">
+                                    <div class="movie-title">🎬 編號 ${movie.id}：${movie.title}</div>
+                                    <div class="movie-date">📅 上映日期：${movie.release_date || '待定'}</div>
+                                    <a href="${movie.detail_url || '#'}" class="movie-link" target="_blank">🔗 查看介紹頁 →</a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    moviesHtml += '</div>';
+                    resultDiv.innerHTML = moviesHtml;
+                } else {
+                    resultDiv.innerHTML = `<div class="message error">❌ 查詢失敗：${data.error || '未知錯誤'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="message error">❌ 請求失敗：${error.message}</div>`;
+                console.error('查詢錯誤:', error);
+            }
+        }
+        
+        // 支援 Enter 鍵查詢
+        document.getElementById('keyword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchMovie();
+            }
+        });
+    </script>
+</body>
+</html>
