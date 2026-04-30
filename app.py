@@ -179,6 +179,7 @@ def movie():
     html += """
             <div class="footer">
                 <a href="/" class="back-link">🏠 回首頁</a>
+                <a href="/vscinemas" class="back-link">🎬 威秀影城</a>
             </div>
         </div>
     </body>
@@ -330,6 +331,7 @@ def search():
             <div class="footer">
                 <a href="/" class="back-link">🏠 回首頁</a>
                 <a href="/movie" class="back-link">🎬 看全部電影</a>
+                <a href="/vscinemas" class="back-link">🎬 威秀影城</a>
             </div>
         </div>
     </body>
@@ -337,6 +339,219 @@ def search():
     """
     
     return html
+
+
+# ================= 新增：威秀影城爬蟲 =================
+@app.route("/vscinemas")
+def vscinemas():
+    """爬取威秀影城即將上映電影"""
+    url = "https://www.vscinemas.com.tw/film/coming.aspx"
+    try:
+        # 發送請求，加上 headers 模仿瀏覽器，避免被拒絕
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers, verify=False)
+        response.encoding = 'utf-8'
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # 找尋所有電影項目 - 根據威秀影城實際網頁結構調整
+        # 方法1: 尋找所有包含電影資訊的 <a> 標籤，這些連結通常指向電影詳細頁面
+        movies = []
+        
+        # 尋找所有連結中包含 '/film/' 的 <a> 標籤，這些通常是電影頁面
+        all_links = soup.find_all('a', href=True)
+        film_links = [link for link in all_links if '/film/' in link['href'] and link.get_text(strip=True)]
+        
+        for link in film_links:
+            title = link.get_text(strip=True)
+            # 過濾掉太短的標題或像是 "更多"、"詳細" 之類的文字
+            if title and len(title) >= 2 and title not in ['更多', '詳細', 'more', 'detail']:
+                href = link['href']
+                if not href.startswith('http'):
+                    href = 'https://www.vscinemas.com.tw' + href
+                
+                # 避免重複加入相同的電影
+                if not any(m['title'] == title for m in movies):
+                    movies.append({
+                        'title': title,
+                        'link': href
+                    })
+        
+        # 如果上面的方法沒找到，嘗試另一種選擇器
+        if not movies:
+            # 備案：尋找 class 包含 'movie' 或 'film' 的區塊
+            movie_blocks = soup.select('.movieItem, .filmItem, .movie_list_item, .coming_item')
+            for block in movie_blocks:
+                title_tag = block.find('a')
+                if title_tag:
+                    title = title_tag.get_text(strip=True)
+                    if title and len(title) >= 2:
+                        href = title_tag.get('href', '')
+                        if href:
+                            if not href.startswith('http'):
+                                href = 'https://www.vscinemas.com.tw' + href
+                            movies.append({
+                                'title': title,
+                                'link': href
+                            })
+        
+        # 開始產生 HTML 結果
+        html = """
+        <!DOCTYPE html>
+        <html lang="zh-TW">
+        <head>
+            <meta charset="UTF-8">
+            <title>威秀影城 - 即將上映</title>
+            <style>
+                body {
+                    font-family: 'Microsoft JhengHei', Arial, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                    padding: 40px;
+                    margin: 0;
+                }
+                .container {
+                    max-width: 900px;
+                    margin: 0 auto;
+                }
+                h1 {
+                    color: white;
+                    text-align: center;
+                    margin-bottom: 10px;
+                }
+                .update-info {
+                    color: white;
+                    text-align: center;
+                    margin-bottom: 30px;
+                    opacity: 0.9;
+                }
+                .movie-card {
+                    background: white;
+                    border-radius: 15px;
+                    padding: 20px;
+                    margin-bottom: 20px;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+                }
+                .movie-info {
+                    flex: 1;
+                }
+                .movie-title {
+                    color: #667eea;
+                    margin-top: 0;
+                    margin-bottom: 10px;
+                }
+                .movie-detail {
+                    color: #555;
+                    margin: 8px 0;
+                }
+                .movie-link a {
+                    color: #ff6b6b;
+                    text-decoration: none;
+                }
+                .back-link {
+                    display: inline-block;
+                    margin: 20px 10px;
+                    padding: 10px 20px;
+                    background: white;
+                    color: #667eea;
+                    text-decoration: none;
+                    border-radius: 50px;
+                }
+                .footer {
+                    text-align: center;
+                }
+                .movie-count {
+                    color: white;
+                    text-align: center;
+                    margin-bottom: 20px;
+                    font-size: 1.1em;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🎬 威秀影城 - 即將上映電影</h1>
+                <div class="update-info">📅 資料來源：威秀影城官方網站 | 即時爬取</div>
+                <div class="movie-count">📊 共找到 {} 部電影</div>
+        """.format(len(movies))
+        
+        if not movies:
+            html += '<div class="movie-card" style="text-align:center;"><p>⚠️ 目前無法獲取電影資料</p><p>可能原因：網站結構更新或連線問題</p><p>建議：<br>1. 檢查網路連線<br>2. 稍後再試<br>3. 聯繫開發者更新爬蟲程式</p></div>'
+        else:
+            for movie in movies:
+                html += f"""
+                <div class="movie-card">
+                    <div class="movie-info">
+                        <h2 class="movie-title">🎬 {movie['title']}</h2>
+                        <p class="movie-link">🔗 <a href="{movie['link']}" target="_blank">點我看詳細介紹</a></p>
+                    </div>
+                </div>
+                """
+        
+        html += """
+                <div class="footer">
+                    <a href="/" class="back-link">🏠 回首頁</a>
+                    <a href="/movie" class="back-link">🎬 開眼電影網</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        return html
+        
+    except Exception as e:
+        # 發生錯誤時顯示錯誤訊息
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>爬蟲錯誤</title>
+            <style>
+                body {{
+                    font-family: 'Microsoft JhengHei', Arial, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    margin: 0;
+                    padding: 20px;
+                }}
+                .error-box {{
+                    background: white;
+                    border-radius: 20px;
+                    padding: 40px;
+                    text-align: center;
+                    max-width: 500px;
+                }}
+                h1 {{ color: #ff6b6b; }}
+                .back-link {{
+                    display: inline-block;
+                    margin-top: 20px;
+                    padding: 10px 20px;
+                    background: #667eea;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 50px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="error-box">
+                <h1>⚠️ 爬蟲發生錯誤</h1>
+                <p>錯誤訊息：{str(e)}</p>
+                <p>可能原因：<br>
+                - 網站暫時無法連線<br>
+                - 網站結構已更新<br>
+                - 網路連線問題</p>
+                <a href="/" class="back-link">🏠 回首頁</a>
+            </div>
+        </body>
+        </html>
+        """
+# ================= 威秀影城爬蟲結束 =================
 
 
 if __name__ == "__main__":
