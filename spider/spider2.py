@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 
-url = "https://tcyang2026-a.vercel.app/about"
+url = "https://www1.pu.edu.tw/~s1131215/index.php"
 Data = requests.get(url)
 Data.encoding = "utf-8"
 #print(Data.text)
